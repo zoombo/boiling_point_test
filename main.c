@@ -1,16 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-/* 
- * File:   main.c
- * Author: dimasik
- *
- * Created on 12 июля 2017 г., 16:25
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -18,9 +5,10 @@
 #include <sys/socket.h>
 #include <netinet/ip.h>
 #include <sys/types.h>
+#include <sys/epoll.h>
+
 #include <stdbool.h>
 #include <string.h>
-#include <sys/epoll.h>
 /*
  * 
  */
@@ -28,7 +16,6 @@
 /*
  * 
  */
-#define nl printf("\n")
 #define uint unsigned int
 
 #define PORT 4500
@@ -76,7 +63,6 @@ int main(int argc, char** argv) {
     }
 
     int s32accept_fd = 0;
-    // char *msg = "Hello!";
     char *buff;
 
     while (true) {
@@ -92,25 +78,14 @@ int main(int argc, char** argv) {
             if (recv_bytes == BUFF_LEN) {
                 buff = realloc(buff, recv_full + (sizeof (char) * BUFF_LEN));
             }
-        } while (recv_bytes == BUFF_LEN);
+        } while (recv_bytes > BUFF_LEN - 1);
         // На всяк случай, чтобы потом проблем с переполненными буферами небыло.
         *(buff + recv_full) = '\0';
 
         // DEBUG.
         printf("%s", buff);
-        printf("io0oiii");
-        // END_DEBUG.
-        //exit(0);
 
-/*
-        if (!strcmp(buff, "shutdown100")) {
-            close(s32accept_fd);
-            free(buff);
-            exit(0);
-        }
-*/
-
-        // Обойдемся пока без регулярок и PCRE.            
+        // Обойдемся пока без регулярок и PCRE.
         _Bool found_S = false;
         int finding_str_len = 0;
         for (unsigned int i = 0; i < recv_full; i++) {
@@ -130,9 +105,9 @@ int main(int argc, char** argv) {
         char send_buff[sizeof (int)];
         sprintf(send_buff, "%d", finding_str_len);
         send(s32accept_fd, send_buff, sizeof (int), 0);
-        // DEBUG.
+        // Для красоты.
         send(s32accept_fd, "\n", sizeof ("\n"), 0);
-        // END_DEBUG.
+
         close(s32accept_fd);
 
     }
