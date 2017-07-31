@@ -75,13 +75,30 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    struct epoll_event in_ev = {}, out_ev = {};
+    int mepoll_fd;
+
+    mepoll_fd = epoll_create1(0);
+    if (mepoll_fd == -1) {
+        printf("Create epoll error.\n");
+        return -1;
+    }
+    
     int s32accept_fd = 0;
     // char *msg = "Hello!";
     char *buff;
-
+    
     while (true) {
 
         s32accept_fd = accept(s32listener_fd, 0, 0);
+
+        in_ev.events = EPOLLIN;
+        in_ev.data.fd = s32accept_fd;
+        status = epoll_ctl(mepoll_fd, EPOLL_CTL_ADD, s32accept_fd, &in_ev);
+        if (status == -1) {
+            printf("epoll_ctl --> EPOLL_CTL_ADD error.\n");
+            return -1;
+        }
 
         buff = malloc(sizeof (char) * BUFF_LEN);
         int recv_bytes = 0, recv_full = 0;
@@ -92,23 +109,21 @@ int main(int argc, char** argv) {
             if (recv_bytes == BUFF_LEN) {
                 buff = realloc(buff, recv_full + (sizeof (char) * BUFF_LEN));
             }
-        } while (recv_bytes == BUFF_LEN);
+        } while (epoll_wait(mepoll_fd, &out_ev, 1, 0) != 0);
         // На всяк случай, чтобы потом проблем с переполненными буферами небыло.
         *(buff + recv_full) = '\0';
 
         // DEBUG.
         printf("%s", buff);
-        printf("io0oiii");
+        printf("_test\n");
         // END_DEBUG.
         //exit(0);
 
-/*
-        if (!strcmp(buff, "shutdown100")) {
+        if (!strcmp(buff, "shutdown")) {
             close(s32accept_fd);
             free(buff);
             exit(0);
         }
-*/
 
         // Обойдемся пока без регулярок и PCRE.            
         _Bool found_S = false;
@@ -125,13 +140,16 @@ int main(int argc, char** argv) {
                 break;
         }
 
+        printf("\nWTF???!\n");
+
         free(buff);
 
-        char send_buff[sizeof (int)];
+        char send_buff[sizeof (int)] = {};
         sprintf(send_buff, "%d", finding_str_len);
+        // sprintf(send_buff, "%d", 10);
         send(s32accept_fd, send_buff, sizeof (int), 0);
         // DEBUG.
-        send(s32accept_fd, "\n", sizeof ("\n"), 0);
+        //send(s32accept_fd, "\n", sizeof ("\n"), 0);
         // END_DEBUG.
         close(s32accept_fd);
 
