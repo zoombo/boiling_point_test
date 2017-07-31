@@ -75,6 +75,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
+    // Будем использовать epoll в режиме level-triggered.
     struct epoll_event in_ev = {}, out_ev = {};
     int mepoll_fd;
 
@@ -83,11 +84,11 @@ int main(int argc, char** argv) {
         printf("Create epoll error.\n");
         return -1;
     }
-    
+
     int s32accept_fd = 0;
     // char *msg = "Hello!";
     char *buff;
-    
+
     while (true) {
 
         s32accept_fd = accept(s32listener_fd, 0, 0);
@@ -103,21 +104,23 @@ int main(int argc, char** argv) {
         buff = malloc(sizeof (char) * BUFF_LEN);
         int recv_bytes = 0, recv_full = 0;
 
+        // Повторяем пока в сокете есть данные для считывания.
+        // Проверок на макс. размер буфера пока нет.
         do {
             recv_bytes = recv(s32accept_fd, buff + recv_full, BUFF_LEN, 0);
             recv_full += recv_bytes;
             if (recv_bytes == BUFF_LEN) {
                 buff = realloc(buff, recv_full + (sizeof (char) * BUFF_LEN));
             }
+
         } while (epoll_wait(mepoll_fd, &out_ev, 1, 0) != 0);
-        // На всяк случай, чтобы потом проблем с переполненными буферами небыло.
+
+        // На всяк случай, чтобы потом проблем с выходом за границы не было.
         *(buff + recv_full) = '\0';
 
         // DEBUG.
-        printf("%s", buff);
-        printf("_test\n");
+        printf("%s\n", buff);
         // END_DEBUG.
-        //exit(0);
 
         if (!strcmp(buff, "shutdown")) {
             close(s32accept_fd);
@@ -125,7 +128,7 @@ int main(int argc, char** argv) {
             exit(0);
         }
 
-        // Обойдемся пока без регулярок и PCRE.            
+        // Пока без регулярок и PCRE.            
         _Bool found_S = false;
         int finding_str_len = 0;
         for (unsigned int i = 0; i < recv_full; i++) {
@@ -138,19 +141,18 @@ int main(int argc, char** argv) {
             }
             if (buff[i] == 'E')
                 break;
+            if (i == recv_full - 1) {
+                finding_str_len = 0;
+            }
         }
 
-        printf("\nWTF???!\n");
+
 
         free(buff);
-
+        // Буфер ответа.
         char send_buff[sizeof (int)] = {};
         sprintf(send_buff, "%d", finding_str_len);
-        // sprintf(send_buff, "%d", 10);
         send(s32accept_fd, send_buff, sizeof (int), 0);
-        // DEBUG.
-        //send(s32accept_fd, "\n", sizeof ("\n"), 0);
-        // END_DEBUG.
         close(s32accept_fd);
 
     }
